@@ -1,0 +1,14 @@
+/* frontend/src/assets/main.css */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  /* 如果你不喜欢默认的字体，也可以在这里全局设置 */
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
