@@ -2,6 +2,7 @@
 
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from .models import Asset
 
 class UserSerializer(serializers.ModelSerializer):
     """用于展示用户信息的序列化器"""
@@ -25,3 +26,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+    
+class AssetSerializer(serializers.ModelSerializer):
+    """资产序列化器"""
+    class Meta:
+        model = Asset
+        fields = '__all__' # 暴露所有字段
+        # 将 owner 设置为只读，前端不需要传这个字段，后端会自动根据当前登录用户去绑定
+        read_only_fields = ('owner',)

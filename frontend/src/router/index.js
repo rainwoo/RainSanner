@@ -29,9 +29,14 @@ const router = createRouter({
           path: '', 
           name: 'welcome',
           component: () => import('../views/Welcome.vue')
-        }
+        },
         // 我们后续开发的资产管理、漏洞扫描页面，都会加在这里面！
         // 例如: { path: 'assets', component: AssetList }
+        {
+          path: 'assets',
+          name: 'assets',
+          component: () => import('../views/AssetList.vue')
+        }
       ]
     }
   ]

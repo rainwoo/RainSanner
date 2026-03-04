@@ -1,9 +1,15 @@
-from django.urls import path
-from .views import RegisterView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import RegisterView, AssetViewSet
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+
+# 使用 DefaultRouter 自动生成 RESTful 风格的路由
+router = DefaultRouter()
+router.register(r'assets', AssetViewSet, basename='asset') 
+# 这样会自动生成 /api/assets/ (GET/POST) 和 /api/assets/<id>/ (GET/PUT/DELETE)
 
 urlpatterns = [
     # 注册接口: http://127.0.0.1:8000/api/register/
@@ -14,4 +20,7 @@ urlpatterns = [
     
     # 刷新 Token 接口: http://127.0.0.1:8000/api/token/refresh/
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # 将 router 自动生成的路由包含进来
+    path('', include(router.urls)),
 ]
