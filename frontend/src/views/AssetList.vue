@@ -22,8 +22,12 @@
             {{ new Date(scope.row.created_at).toLocaleString() }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="250" align="center">
           <template #default="scope">
+            <el-button size="small" type="success" link @click="handleScan(scope.row)">
+              发起扫描
+            </el-button>
+
             <el-button size="small" type="primary" link @click="handleEdit(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" link @click="handleDelete(scope.row.id)">删除</el-button>
           </template>
@@ -91,7 +95,7 @@ const fetchAssets = async () => {
     const res = await request.get('/assets/')
     // 注意：DRF ViewSet 默认不开启分页时返回数组，开启分页时返回 { count, next, previous, results }
     // 这里假设未开启全局分页，直接赋 res
-    assetList.value = res 
+    assetList.value = res
   } catch (error) {
     console.error('获取资产列表失败', error)
   } finally {
@@ -168,12 +172,41 @@ const handleDelete = (id) => {
     // 用户取消操作，不做处理
   })
 }
+
+// 发起扫描逻辑
+const handleScan = async (row) => {
+  if (row.asset_type !== 'web') {
+    ElMessage.warning('目前只支持 Web 漏洞扫描哦')
+    return
+  }
+
+  ElMessageBox.confirm(`确定要对 [${row.name}] 发起漏洞扫描吗？扫描可能需要几分钟时间，请耐心等待。`, '提示', {
+    confirmButtonText: '开始扫描',
+    cancelButtonText: '取消',
+    type: 'info',
+  }).then(async () => {
+    // 开启页面全屏加载效果，防止用户乱点
+    loading.value = true 
+    try {
+      // 调用后端的 /api/assets/{id}/scan/ 接口
+      const res = await request.post(`/assets/${row.id}/scan/`)
+      ElMessage.success(res.message || '扫描任务已完成！')
+      // 可选：扫描完成后你可以自动跳转到报告页面查看结果
+    } catch (error) {
+      console.error('扫描失败', error)
+      ElMessage.error('扫描失败，请检查后端日志')
+    } finally {
+      loading.value = false
+    }
+  }).catch(() => {})
+}
 </script>
 
 <style scoped>
 .app-container {
   padding: 20px;
 }
+
 .header-op {
   display: flex;
   justify-content: flex-start;

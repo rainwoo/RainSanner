@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, AssetViewSet
+from .views import RegisterView, AssetViewSet, ScanTaskViewSet, VulnerabilityViewSet
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -10,6 +10,9 @@ from rest_framework_simplejwt.views import (
 router = DefaultRouter()
 router.register(r'assets', AssetViewSet, basename='asset') 
 # 这样会自动生成 /api/assets/ (GET/POST) 和 /api/assets/<id>/ (GET/PUT/DELETE)
+# 注册任务和漏洞的路由
+router.register(r'tasks', ScanTaskViewSet, basename='task')
+router.register(r'vulnerabilities', VulnerabilityViewSet, basename='vulnerability')
 
 urlpatterns = [
     # 注册接口: http://127.0.0.1:8000/api/register/

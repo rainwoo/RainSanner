@@ -75,6 +75,10 @@ class Vulnerability(models.Model):
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, verbose_name="危险等级")
     description = models.TextField(verbose_name="漏洞描述", blank=True, null=True)
     remediation = models.TextField(verbose_name="修复建议", blank=True, null=True)
+    matched_at = models.TextField(verbose_name="匹配位置/URL", blank=True, null=True)
+    extracted_results = models.TextField(verbose_name="提取的证据", blank=True, null=True)
+    curl_command = models.TextField(verbose_name="复现命令(Curl)", blank=True, null=True)
+    references = models.TextField(verbose_name="参考链接", blank=True, null=True)
     discovered_at = models.DateTimeField(auto_now_add=True, verbose_name="发现时间")
 
     class Meta:

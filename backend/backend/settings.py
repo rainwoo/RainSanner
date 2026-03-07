@@ -113,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'zh-Hans'
 
-TIME_ZONE = 'asia/shanghai'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
@@ -140,3 +140,15 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7), # 刷新令牌有效期设为 7 天
     'AUTH_HEADER_TYPES': ('Bearer',), # 规定前端请求头必须带 Bearer
 }
+
+# --- Celery & Redis 配置 ---
+# 配置 Redis 作为消息代理 (Broker)
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+# 配置 Redis 存储任务执行结果
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+
+# 序列化格式
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE

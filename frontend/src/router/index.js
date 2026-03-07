@@ -36,6 +36,28 @@ const router = createRouter({
           path: 'assets',
           name: 'assets',
           component: () => import('../views/AssetList.vue')
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('../views/Report.vue')
+        },
+        {
+          path: 'assets',
+          name: 'assets',
+          component: () => import('../views/AssetList.vue')
+        },
+        // --- 新增下面这段 ---
+        {
+          path: 'scan/web',
+          name: 'web-scan',
+          component: () => import('../views/WebScan.vue')
+        },
+        // -------------------
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('../views/Report.vue')
         }
       ]
     }
