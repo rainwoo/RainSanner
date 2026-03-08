@@ -21,6 +21,16 @@
           <el-icon><Platform /></el-icon>
           <span>资产清单</span>
         </el-menu-item>
+
+        <el-menu-item index="/dashboard/assets">
+          <el-icon><Platform /></el-icon>
+          <span>资产清单</span>
+        </el-menu-item>
+        
+        <el-menu-item index="/dashboard/sniff">
+          <el-icon><Radar /></el-icon>
+          <span>网络嗅探</span>
+        </el-menu-item>
         
         <el-sub-menu index="scan">
           <template #title>
@@ -74,7 +84,6 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-// 引入 Element Plus 的图标
 import {
   HomeFilled,
   Platform,
@@ -82,8 +91,10 @@ import {
   Document,
   ChatDotRound,
   ArrowDown,
-  UserFilled
+  UserFilled,
+  Radar  // <--- 引入这个雷达图标
 } from '@element-plus/icons-vue'
+
 
 const router = useRouter()
 

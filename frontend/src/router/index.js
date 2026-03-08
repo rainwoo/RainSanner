@@ -47,7 +47,11 @@ const router = createRouter({
           name: 'assets',
           component: () => import('../views/AssetList.vue')
         },
-        // --- 新增下面这段 ---
+        {
+          path: 'sniff',
+          name: 'host-sniff',
+          component: () => import('../views/HostSniff.vue')
+        },
         {
           path: 'scan/web',
           name: 'web-scan',

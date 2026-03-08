@@ -8,7 +8,7 @@ import json
 import os
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .tasks import run_nuclei_scan_task
+from .tasks import run_nuclei_scan_task, run_nmap_sniff_task
 
 class RegisterView(generics.CreateAPIView):
     """
@@ -55,6 +55,23 @@ class AssetViewSet(viewsets.ModelViewSet):
                         "message": f"[{'快速' if mode == 'quick' else '深度'}扫描] 任务已提交后台执行！", 
                         "task_id": task.id
                     })
+    
+    @action(detail=False, methods=['post'])
+    def sniff(self, request):
+        """
+        触发网段嗅探任务
+        路由自动生成为: POST /api/assets/sniff/
+        """
+        network = request.data.get('network')
+        if not network:
+            return Response({"error": "必须提供 network (网段) 参数"}, status=400)
+            
+        # 将网段和当前用户的 ID 交给 Celery 后台处理
+        run_nmap_sniff_task.delay(network, request.user.id)
+        
+        return Response({
+            "message": f"正在后台全速嗅探 {network}，稍后请刷新资产列表查看新发现的主机！"
+        })
     
 class ScanTaskViewSet(viewsets.ReadOnlyModelViewSet):
     """

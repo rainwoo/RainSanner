@@ -6,6 +6,8 @@ import os
 from celery import shared_task
 from .models import ScanTask, Vulnerability
 import logging
+from django.contrib.auth.models import User
+from .models import Asset
 
 logger = logging.getLogger(__name__)
 
@@ -120,3 +122,47 @@ def run_nuclei_scan_task(task_id, mode='quick'):
         task.status = 'failed'
         task.save()
         return f"Task {task_id} failed: {str(e)}"
+
+
+@shared_task
+def run_nmap_sniff_task(network_range, user_id):
+    """
+    异步执行 Nmap 主机存活嗅探，并自动入库
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # 构造 Nmap 命令
+        # -sn: 只进行 Ping 扫描，不扫描端口 (速度极快)
+        # -T4: 设置相对较快的扫描速度
+        # -oG -: 将结果以 Grepable (易于程序解析) 的格式输出到控制台
+        command = ["nmap", "-sn", "-T4", network_range, "-oG", "-"]
+        
+        # 执行命令并捕获输出
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        
+        added_count = 0
+        
+        # 逐行解析 Nmap 的输出
+        for line in result.stdout.splitlines():
+            # Grepable 格式中，存活主机会包含 "Status: Up"
+            if "Status: Up" in line:
+                # 典型的输出行: Host: 192.168.1.1 (router.local)  Status: Up
+                parts = line.split(" ")
+                if len(parts) >= 2:
+                    ip = parts[1] # 提取出 IP 地址
+                    
+                    # 检查当前用户是否已经添加过这个 IP，避免重复添加
+                    if not Asset.objects.filter(target=ip, owner=user).exists():
+                        Asset.objects.create(
+                            name=f"自动嗅探主机_{ip}",
+                            target=ip,
+                            asset_type='host', # 自动标记为 主机/服务器 类型
+                            owner=user
+                        )
+                        added_count += 1
+                        
+        return f"网段 {network_range} 嗅探完成，成功发现并添加了 {added_count} 个存活主机。"
+
+    except Exception as e:
+        return f"嗅探任务失败: {str(e)}"

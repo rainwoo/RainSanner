@@ -2,9 +2,32 @@
   <div class="app-container">
     <el-card>
       <div class="header-op">
-        <el-button type="primary" @click="handleAdd">添加资产</el-button>
-        <el-button @click="fetchAssets" icon="Refresh">刷新</el-button>
-      </div>
+              <el-button type="primary" @click="handleAdd" icon="Plus">添加资产</el-button>
+              <el-button type="warning" @click="sniffDialogVisible = true" icon="Location">网络嗅探</el-button>
+              <el-button @click="fetchAssets" icon="Refresh">刷新列表</el-button>
+            </div>
+
+            <el-dialog v-model="sniffDialogVisible" title="内网主机嗅探" width="450px">
+              <el-alert 
+                title="自动化资产发现" 
+                type="info" 
+                description="输入一个网段（如 192.168.1.0/24），系统将在后台扫描存活主机并自动加入下方的资产清单中。" 
+                show-icon 
+                style="margin-bottom: 20px;"
+                :closable="false"
+              />
+              <el-form :model="sniffForm" @submit.prevent>
+                <el-form-item label="目标网段" label-width="80px">
+                  <el-input v-model="sniffForm.network" placeholder="例如: 10.0.8.0/24" />
+                </el-form-item>
+              </el-form>
+              <template #footer>
+                <span class="dialog-footer">
+                  <el-button @click="sniffDialogVisible = false">取消</el-button>
+                  <el-button type="warning" @click="submitSniff" :loading="sniffLoading">开始嗅探</el-button>
+                </span>
+              </template>
+            </el-dialog>
 
       <el-table :data="assetList" v-loading="loading" border style="width: 100%; margin-top: 20px;">
         <el-table-column prop="id" label="ID" width="80" align="center" />
@@ -73,6 +96,13 @@ const submitLoading = ref(false)
 const dialogTitle = ref('添加资产')
 const formRef = ref(null)
 
+// 在 script setup 的原有变量下方，增加嗅探相关的状态
+const sniffDialogVisible = ref(false)
+const sniffLoading = ref(false)
+const sniffForm = reactive({
+  network: ''
+})
+
 // 表单数据
 const form = reactive({
   id: null,
@@ -86,6 +116,37 @@ const rules = {
   name: [{ required: true, message: '请输入资产名称', trigger: 'blur' }],
   target: [{ required: true, message: '请输入目标地址', trigger: 'blur' }],
   asset_type: [{ required: true, message: '请选择资产类型', trigger: 'change' }]
+}
+
+// 提交嗅探任务
+const submitSniff = async () => {
+  if (!sniffForm.network) {
+    ElMessage.warning('请输入目标网段！')
+    return
+  }
+  
+  sniffLoading.value = true
+  try {
+    // 调用刚才写好的 /api/assets/sniff/ 接口
+    const res = await request.post('/assets/sniff/', {
+      network: sniffForm.network
+    })
+    
+    ElMessage.success(res.message)
+    sniffDialogVisible.value = false
+    sniffForm.network = '' // 清空输入框
+    
+    // 嗅探通常只需要几秒钟，我们可以设置个定时器，3秒后自动刷新一下当前列表
+    setTimeout(() => {
+      fetchAssets()
+      ElMessage.info('资产列表已自动刷新')
+    }, 3000)
+
+  } catch (error) {
+    console.error('嗅探失败', error)
+  } finally {
+    sniffLoading.value = false
+  }
 }
 
 // 获取资产列表 (Read)
