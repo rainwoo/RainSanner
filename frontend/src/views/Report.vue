@@ -1,10 +1,20 @@
 <template>
   <div class="app-container">
     <el-card>
-      <template #header>
+<template #header>
         <div class="card-header">
-          <span>扫描任务与报告</span>
-          <el-button type="primary" link @click="fetchTasks" icon="Refresh">手动刷新</el-button>
+          <span class="title">扫描任务与报告</span>
+          
+          <div class="header-actions">
+            <el-button type="success" plain :icon="Download" @click="exportCSV" :loading="exportLoading">
+              导出 CSV
+            </el-button>
+            
+            <el-button type="primary" plain :icon="Refresh" @click="fetchTasks">
+              手动刷新
+            </el-button>
+          </div>
+          
         </div>
       </template>
 
@@ -108,6 +118,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Refresh, Download } from '@element-plus/icons-vue'
 import request from '../utils/request'
 
 const taskList = ref([])
@@ -117,6 +129,9 @@ const loading = ref(false)
 const drawerVisible = ref(false)
 const drawerLoading = ref(false)
 const vulnList = ref([])
+
+// 新增：导出相关的状态
+const exportLoading = ref(false)
 
 // 轮询定时器变量
 let pollTimer = null
@@ -176,6 +191,39 @@ onUnmounted(() => {
     clearInterval(pollTimer)
   }
 })
+
+const exportCSV = async () => {
+  exportLoading.value = true
+  try {
+    // 关键配置：responseType 必须设为 'blob'，否则 Axios 会把文件流当成乱码字符串解析
+    const res = await request.get('/vulnerabilities/export/', { responseType: 'blob' })
+    
+    // 兼容不同的 Axios 拦截器封装方式（有的会返回 res.data，有的直接返回 res）
+    const blobData = res.data || res
+    
+    // 构造一个 Blob 对象
+    const blob = new Blob([blobData], { type: 'text/csv;charset=utf-8;' })
+    
+    // 利用 DOM 技巧：生成一个临时链接并模拟点击下载
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `漏洞扫描报告_${new Date().getTime()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    
+    // 清理战场
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('报告导出成功！')
+  } catch (error) {
+    console.error('导出失败', error)
+    ElMessage.error('导出失败，请检查网络')
+  } finally {
+    exportLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -206,5 +254,15 @@ onUnmounted(() => {
   word-wrap: break-word;
   font-family: Consolas, Monaco, monospace;
   margin: 0;
+}
+.title {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* 增加 12px 的呼吸感间距 */
 }
 </style>

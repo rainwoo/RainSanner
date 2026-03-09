@@ -2,32 +2,9 @@
   <div class="app-container">
     <el-card>
       <div class="header-op">
-              <el-button type="primary" @click="handleAdd" icon="Plus">添加资产</el-button>
-              <el-button type="warning" @click="sniffDialogVisible = true" icon="Location">网络嗅探</el-button>
-              <el-button @click="fetchAssets" icon="Refresh">刷新列表</el-button>
+              <el-button type="primary" @click="handleAdd" :icon="Plus">添加资产</el-button>
+              <el-button @click="fetchAssets" :icon="Refresh">刷新列表</el-button>
             </div>
-
-            <el-dialog v-model="sniffDialogVisible" title="内网主机嗅探" width="450px">
-              <el-alert 
-                title="自动化资产发现" 
-                type="info" 
-                description="输入一个网段（如 192.168.1.0/24），系统将在后台扫描存活主机并自动加入下方的资产清单中。" 
-                show-icon 
-                style="margin-bottom: 20px;"
-                :closable="false"
-              />
-              <el-form :model="sniffForm" @submit.prevent>
-                <el-form-item label="目标网段" label-width="80px">
-                  <el-input v-model="sniffForm.network" placeholder="例如: 10.0.8.0/24" />
-                </el-form-item>
-              </el-form>
-              <template #footer>
-                <span class="dialog-footer">
-                  <el-button @click="sniffDialogVisible = false">取消</el-button>
-                  <el-button type="warning" @click="submitSniff" :loading="sniffLoading">开始嗅探</el-button>
-                </span>
-              </template>
-            </el-dialog>
 
       <el-table :data="assetList" v-loading="loading" border style="width: 100%; margin-top: 20px;">
         <el-table-column prop="id" label="ID" width="80" align="center" />
@@ -38,6 +15,14 @@
             <el-tag :type="scope.row.asset_type === 'web' ? 'success' : 'warning'">
               {{ scope.row.asset_type === 'web' ? 'Web应用' : '主机/服务器' }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="os_type" label="系统类型" align="center">
+          <template #default="scope">
+            <span v-if="scope.row.asset_type === 'web'">-</span>
+            <el-tag v-else-if="scope.row.os_type === 'windows'" type="primary">Windows</el-tag>
+            <el-tag v-else-if="scope.row.os_type === 'linux'" type="danger">Linux</el-tag>
+            <el-tag v-else type="info">未知</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="180">
@@ -72,6 +57,13 @@
             <el-option label="主机/服务器" value="host" />
           </el-select>
         </el-form-item>
+        <el-form-item label="系统类型" prop="os_type" v-if="form.asset_type === 'host'">
+          <el-select v-model="form.os_type" placeholder="请选择系统" style="width: 100%;">
+            <el-option label="Windows" value="windows" />
+            <el-option label="Linux" value="linux" />
+            <el-option label="未知 (Unknown)" value="unknown" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -87,6 +79,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../utils/request' // 引入我们封装的网络请求
+import { Plus, Location, Refresh } from '@element-plus/icons-vue'
 
 // 响应式状态变量
 const assetList = ref([])
@@ -96,19 +89,13 @@ const submitLoading = ref(false)
 const dialogTitle = ref('添加资产')
 const formRef = ref(null)
 
-// 在 script setup 的原有变量下方，增加嗅探相关的状态
-const sniffDialogVisible = ref(false)
-const sniffLoading = ref(false)
-const sniffForm = reactive({
-  network: ''
-})
-
 // 表单数据
 const form = reactive({
   id: null,
   name: '',
   target: '',
-  asset_type: 'web'
+  asset_type: 'web',
+  os_type: 'unknown' // 默认未知
 })
 
 // 表单校验规则
@@ -116,37 +103,6 @@ const rules = {
   name: [{ required: true, message: '请输入资产名称', trigger: 'blur' }],
   target: [{ required: true, message: '请输入目标地址', trigger: 'blur' }],
   asset_type: [{ required: true, message: '请选择资产类型', trigger: 'change' }]
-}
-
-// 提交嗅探任务
-const submitSniff = async () => {
-  if (!sniffForm.network) {
-    ElMessage.warning('请输入目标网段！')
-    return
-  }
-  
-  sniffLoading.value = true
-  try {
-    // 调用刚才写好的 /api/assets/sniff/ 接口
-    const res = await request.post('/assets/sniff/', {
-      network: sniffForm.network
-    })
-    
-    ElMessage.success(res.message)
-    sniffDialogVisible.value = false
-    sniffForm.network = '' // 清空输入框
-    
-    // 嗅探通常只需要几秒钟，我们可以设置个定时器，3秒后自动刷新一下当前列表
-    setTimeout(() => {
-      fetchAssets()
-      ElMessage.info('资产列表已自动刷新')
-    }, 3000)
-
-  } catch (error) {
-    console.error('嗅探失败', error)
-  } finally {
-    sniffLoading.value = false
-  }
 }
 
 // 获取资产列表 (Read)
@@ -176,6 +132,7 @@ const handleAdd = () => {
   form.name = ''
   form.target = ''
   form.asset_type = 'web'
+  form.os_type = 'unknown' // 重置为未知
   dialogVisible.value = true
 }
 
@@ -186,6 +143,7 @@ const handleEdit = (row) => {
   form.name = row.name
   form.target = row.target
   form.asset_type = row.asset_type
+  form.os_type = row.os_type || 'unknown' // 加载原有系统信息
   dialogVisible.value = true
 }
 

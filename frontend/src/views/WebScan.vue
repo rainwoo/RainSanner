@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <span>Web 应用漏洞扫描</span>
-          <el-button @click="fetchWebAssets" icon="Refresh">刷新资产</el-button>
+          <el-button @click="fetchWebAssets" :icon="Refresh">刷新资产</el-button>
         </div>
       </template>
 

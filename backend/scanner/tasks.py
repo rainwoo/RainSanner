@@ -8,8 +8,77 @@ from .models import ScanTask, Vulnerability
 import logging
 from django.contrib.auth.models import User
 from .models import Asset
+import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
+
+@shared_task
+def run_nmap_port_scan_task(task_id):
+    """
+    异步执行 Nmap 端口与服务扫描任务
+    """
+    try:
+        task = ScanTask.objects.get(id=task_id)
+        task.status = 'running'
+        task.save()
+        
+        # 定义输出为 XML 格式的文件
+        output_file = f"nmap_port_output_{task.id}.xml"
+        
+        # 构造 Nmap 命令:
+        # -sV: 探测开放的端口来决定服务和版本信息
+        # -T4: 较快的执行速度
+        # -oX: 将结果输出为 XML 格式以便 Python 结构化解析
+        command = ["nmap", "-sV", "-T4", task.asset.target, "-oX", output_file]
+        
+        # 执行命令 (阻塞等待执行完毕)
+        subprocess.run(command, capture_output=True, text=True, check=False)
+        
+        # 解析 XML 结果并存入 Vulnerability 表 (作为 info 级别)
+        if os.path.exists(output_file):
+            tree = ET.parse(output_file)
+            root = tree.getroot()
+            
+            # 遍历所有的 host 节点
+            for host in root.findall('host'):
+                ports = host.find('ports')
+                if ports is not None:
+                    # 遍历每一个 port 节点
+                    for port in ports.findall('port'):
+                        state = port.find('state').get('state')
+                        # 我们只关心处于 "open" (开放) 状态的端口
+                        if state == 'open':
+                            portid = port.get('portid')
+                            protocol = port.get('protocol')
+                            
+                            service = port.find('service')
+                            service_name = service.get('name') if service is not None else 'unknown'
+                            product = service.get('product') if service is not None else ''
+                            version = service.get('version') if service is not None else ''
+                            
+                            details = f"协议: {protocol}\n服务: {service_name}\n产品: {product} {version}"
+                            
+                            # 将开放端口作为一个“信息(info)”级别的漏洞记录存入数据库
+                            Vulnerability.objects.create(
+                                task=task,
+                                vuln_name=f"开放端口: {portid}/{protocol} ({service_name})",
+                                severity='info', # 标记为 info 级别
+                                description=f"目标主机开放了 {portid} 端口，运行 {service_name} 服务。",
+                                extracted_results=details.strip(),
+                                remediation="如果是危险或非必要端口（如 445, 3389, 6379, 27017 等），建议通过防火墙限制访问或直接关闭服务。"
+                            )
+            # 解析完毕，清理临时文件
+            os.remove(output_file)
+            
+        task.status = 'completed'
+        task.save()
+        return f"Port scan task {task_id} completed successfully."
+
+    except Exception as e:
+        task = ScanTask.objects.get(id=task_id)
+        task.status = 'failed'
+        task.save()
+        return f"Port scan task {task_id} failed: {str(e)}"
 
 @shared_task
 def run_nuclei_scan_task(task_id, mode='quick'):
@@ -127,40 +196,62 @@ def run_nuclei_scan_task(task_id, mode='quick'):
 @shared_task
 def run_nmap_sniff_task(network_range, user_id):
     """
-    异步执行 Nmap 主机存活嗅探，并自动入库
+    异步执行 Nmap 主机存活嗅探并探测操作系统，自动入库
     """
     try:
+        from django.contrib.auth.models import User
         user = User.objects.get(id=user_id)
         
         # 构造 Nmap 命令
-        # -sn: 只进行 Ping 扫描，不扫描端口 (速度极快)
-        # -T4: 设置相对较快的扫描速度
-        # -oG -: 将结果以 Grepable (易于程序解析) 的格式输出到控制台
-        command = ["nmap", "-sn", "-T4", network_range, "-oG", "-"]
+        # -F: 快速扫描常用的100个端口（OS探测需要依赖开放和关闭的端口）
+        # -O: 启用操作系统探测
+        # -oX -: 将结果以 XML 格式直接输出到标准输出(控制台)
+        command = ["nmap", "-F", "-O", "-T4", network_range, "-oX", "-"]
         
         # 执行命令并捕获输出
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         
         added_count = 0
         
-        # 逐行解析 Nmap 的输出
-        for line in result.stdout.splitlines():
-            # Grepable 格式中，存活主机会包含 "Status: Up"
-            if "Status: Up" in line:
-                # 典型的输出行: Host: 192.168.1.1 (router.local)  Status: Up
-                parts = line.split(" ")
-                if len(parts) >= 2:
-                    ip = parts[1] # 提取出 IP 地址
-                    
-                    # 检查当前用户是否已经添加过这个 IP，避免重复添加
-                    if not Asset.objects.filter(target=ip, owner=user).exists():
-                        Asset.objects.create(
-                            name=f"自动嗅探主机_{ip}",
-                            target=ip,
-                            asset_type='host', # 自动标记为 主机/服务器 类型
-                            owner=user
-                        )
-                        added_count += 1
+        try:
+            # 解析 XML 格式的 Nmap 结果
+            root = ET.fromstring(result.stdout)
+        except ET.ParseError:
+            return "嗅探失败：Nmap 输出解析错误（请检查运行 Celery 的终端是否拥有 管理员/root 权限！）"
+            
+        # 遍历所有扫描到的主机
+        for host in root.findall('host'):
+            status = host.find('status')
+            # 只有当主机存活时才处理
+            if status is not None and status.get('state') == 'up':
+                address = host.find('address')
+                if address is None:
+                    continue
+                ip = address.get('addr')
+                
+                # --- 解析操作系统指纹 ---
+                os_type = 'unknown'
+                os_el = host.find('os')
+                if os_el is not None:
+                    osmatch = os_el.find('osmatch')
+                    if osmatch is not None:
+                        os_name = osmatch.get('name', '').lower()
+                        # 简单的关键字匹配
+                        if 'windows' in os_name:
+                            os_type = 'windows'
+                        elif 'linux' in os_name:
+                            os_type = 'linux'
+                
+                # 检查是否已存在
+                if not Asset.objects.filter(target=ip, owner=user).exists():
+                    Asset.objects.create(
+                        name=f"自动嗅探主机_{ip}",
+                        target=ip,
+                        asset_type='host',
+                        os_type=os_type, # 将探测到的系统类型入库！
+                        owner=user
+                    )
+                    added_count += 1
                         
         return f"网段 {network_range} 嗅探完成，成功发现并添加了 {added_count} 个存活主机。"
 

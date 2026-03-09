@@ -3,7 +3,7 @@
     <el-card class="sniff-card">
       <template #header>
         <div class="card-header">
-          <span><el-icon><Radar /></el-icon> 内网主机自动化嗅探</span>
+          <span><el-icon><Connection /></el-icon> 内网主机自动化嗅探</span>
         </div>
       </template>
 
@@ -36,7 +36,7 @@
             size="large" 
             @click="submitSniff" 
             :loading="loading" 
-            icon="Location"
+            :icon="Location"
           >
             开始嗅探
           </el-button>
@@ -49,7 +49,7 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Radar, Monitor, Location } from '@element-plus/icons-vue'
+import { Connection, Monitor, Location } from '@element-plus/icons-vue'
 import request from '../utils/request'
 import { useRouter } from 'vue-router'
 

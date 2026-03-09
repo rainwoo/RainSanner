@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, AssetViewSet, ScanTaskViewSet, VulnerabilityViewSet
+from .views import RegisterView, AssetViewSet, ScanTaskViewSet, VulnerabilityViewSet, DashboardView, AiChatView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -23,6 +23,12 @@ urlpatterns = [
     
     # 刷新 Token 接口: http://127.0.0.1:8000/api/token/refresh/
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # --- 首页大盘接口 ---
+    path('dashboard/stats/', DashboardView.as_view(), name='dashboard_stats'),
+
+    # --- 新增 AI 对话接口 ---
+    path('ai/ask/', AiChatView.as_view(), name='ai_ask'),
 
     # 将 router 自动生成的路由包含进来
     path('', include(router.urls)),

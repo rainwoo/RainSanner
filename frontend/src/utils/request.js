@@ -9,7 +9,7 @@ const service = axios.create({
   // 配置后端 API 的基础 URL，这样以后发请求只需写 '/login/' 即可
   baseURL: 'http://127.0.0.1:8000/api', 
   // 请求超时时间（毫秒），如果 5 秒后端还没响应，就报错
-  timeout: 5000 
+  timeout: 50000 
 })
 
 // 2. 添加【请求拦截器】

@@ -21,14 +21,9 @@
           <el-icon><Platform /></el-icon>
           <span>资产清单</span>
         </el-menu-item>
-
-        <el-menu-item index="/dashboard/assets">
-          <el-icon><Platform /></el-icon>
-          <span>资产清单</span>
-        </el-menu-item>
         
         <el-menu-item index="/dashboard/sniff">
-          <el-icon><Radar /></el-icon>
+          <el-icon><Connection /></el-icon>
           <span>网络嗅探</span>
         </el-menu-item>
         
@@ -61,9 +56,9 @@
         <div class="header-right">
           <el-dropdown trigger="click">
             <span class="el-dropdown-link user-info">
-              <el-avatar :size="30" icon="UserFilled" />
+              <el-avatar :size="30" :icon="UserFilled" />
               <span class="username">管理员</span>
-              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -92,7 +87,7 @@ import {
   ChatDotRound,
   ArrowDown,
   UserFilled,
-  Radar  // <--- 引入这个雷达图标
+  Connection  // <--- 引入这个雷达图标
 } from '@element-plus/icons-vue'
 
 

@@ -10,10 +10,16 @@ class Asset(models.Model):
         ('web', 'Web应用'),
         ('host', '主机/服务器'),
     )
+    OS_CHOICES = (
+        ('windows', 'Windows'),
+        ('linux', 'Linux'),
+        ('unknown', '未知'),
+    )
     
     name = models.CharField(max_length=100, verbose_name="资产名称", help_text="例如：公司官网")
     target = models.CharField(max_length=255, verbose_name="目标地址", help_text="IP地址或URL")
     asset_type = models.CharField(max_length=20, choices=ASSET_TYPE_CHOICES, verbose_name="资产类型")
+    os_type = models.CharField(max_length=20, choices=OS_CHOICES, default='unknown', verbose_name="系统类型")
     # 关联到系统自带的 User 表，表示这个资产是谁添加的。如果用户被删，资产也级联删除
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="所属用户")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
