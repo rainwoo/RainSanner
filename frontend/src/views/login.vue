@@ -1,38 +1,69 @@
 <template>
-  <div class="auth-container">
-    <el-card class="auth-card">
-      <template #header>
-        <h2 class="title">漏洞扫描平台 - 登录</h2>
-      </template>
-      
-      <el-form :model="loginForm" :rules="rules" ref="formRef" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名"></el-input>
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password></el-input>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="handleLogin" :loading="loading" class="submit-btn">登录</el-button>
-        </el-form-item>
-      </el-form>
-      
-      <div class="switch-link">
-        还没有账号？ <router-link to="/register">去注册</router-link>
+  <div class="login-container">
+    <div class="bg-shape shape1"></div>
+    <div class="bg-shape shape2"></div>
+
+    <div class="login-box">
+      <div class="login-header">
+        <h2 class="logo-title">VulnScanner</h2>
+        <p class="subtitle">企业级 Web 漏洞自动化扫描平台</p>
       </div>
-    </el-card>
+
+      <el-form :model="loginForm" :rules="rules" ref="loginFormRef" class="login-form">
+        
+        <el-form-item prop="username">
+          <el-input 
+            v-model="loginForm.username" 
+            placeholder="请输入账号" 
+            size="large"
+            :prefix-icon="User"
+            clearable
+          />
+        </el-form-item>
+
+        <el-form-item prop="password">
+          <el-input 
+            v-model="loginForm.password" 
+            type="password" 
+            placeholder="请输入密码" 
+            show-password
+            size="large"
+            :prefix-icon="Lock"
+            @keyup.enter="handleLogin"
+          />
+        </el-form-item>
+
+        <el-form-item style="margin-top: 30px;">
+          <el-button 
+            type="primary" 
+            class="login-btn" 
+            size="large" 
+            :loading="loading" 
+            @click="handleLogin"
+          >
+            立即登录
+          </el-button>
+        </el-form-item>
+
+        <div class="login-footer">
+          <span>还没有账号？</span>
+          <el-link type="primary" :underline="false" @click="$router.push('/register')">去注册一个</el-link>
+        </div>
+
+      </el-form>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { User, Lock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '../utils/request'
 
 const router = useRouter()
-const formRef = ref(null)
+const loginFormRef = ref(null)
 const loading = ref(false)
 
 const loginForm = reactive({
@@ -40,30 +71,31 @@ const loginForm = reactive({
   password: ''
 })
 
-const rules = reactive({
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-})
+const rules = {
+  username: [{ required: true, message: '账号不能为空', trigger: 'blur' }],
+  password: [{ required: true, message: '密码不能为空', trigger: 'blur' }]
+}
 
 const handleLogin = () => {
-  formRef.value.validate(async (valid) => {
+  loginFormRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
       try {
-        // 2. 这里的 axios.post 改为 request.post，并且去掉前面的 http://...
-        // 3. 因为响应拦截器直接返回了 response.data，所以这里可以直接拿到 data
-        const data = await request.post('/login/', loginForm)
+        const res = await request.post('/login/', {
+          username: loginForm.username,
+          password: loginForm.password
+        })
         
-        // 4. 保存 Token
-        localStorage.setItem('access_token', data.access)
-        localStorage.setItem('refresh_token', data.refresh)
+        // 保存 JWT Token
+        localStorage.setItem('access_token', res.access)
+        if (res.refresh) {
+          localStorage.setItem('refresh_token', res.refresh)
+        }
         
-        ElMessage.success('登录成功！')
+        ElMessage.success('欢迎回来，安全专家！')
         router.push('/dashboard')
       } catch (error) {
-        // 因为我们在拦截器里统一处理了错误提示，这里其实可以不写 ElMessage.error 了，
-        // 但为了应对特定的登录失败场景，可以保留作为兜底
-        console.log("登录失败", error)
+        // 请求拦截器已处理报错，此处忽略
       } finally {
         loading.value = false
       }
@@ -73,28 +105,102 @@ const handleLogin = () => {
 </script>
 
 <style scoped>
-/* 样式与注册页相同 */
-.auth-container {
+/* 满屏深色渐变背景 */
+.login-container {
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  background-color: #f0f2f5;
+  background: linear-gradient(135deg, #1e222d 0%, #0e1624 100%);
+  position: relative;
+  overflow: hidden;
 }
-.auth-card {
+
+/* 增加科技感的发光光晕背景 */
+.bg-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+}
+.shape1 {
   width: 400px;
+  height: 400px;
+  background: rgba(64, 158, 255, 0.15);
+  top: -100px;
+  left: -100px;
 }
-.title {
+.shape2 {
+  width: 300px;
+  height: 300px;
+  background: rgba(103, 194, 58, 0.1);
+  bottom: -50px;
+  right: -50px;
+}
+
+/* 核心登录卡片：白底微透光玻璃拟态 */
+.login-box {
+  width: 420px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 45px 40px;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+.login-header {
   text-align: center;
+  margin-bottom: 35px;
+}
+
+.logo-title {
   margin: 0;
-  color: #303133;
+  font-size: 32px;
+  color: #304156; /* 呼应左侧菜单的深蓝色 */
+  font-weight: 800;
+  letter-spacing: 1.5px;
 }
-.submit-btn {
-  width: 100%;
-}
-.switch-link {
-  text-align: center;
-  margin-top: 15px;
+
+.subtitle {
+  margin: 10px 0 0;
   font-size: 14px;
+  color: #909399;
+  letter-spacing: 1px;
+}
+
+/* 按钮精美特效 */
+.login-btn {
+  width: 100%;
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  border-radius: 8px;
+  background: linear-gradient(to right, #304156, #40536e);
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  background: linear-gradient(to right, #40536e, #536987);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(48, 65, 86, 0.3);
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #606266;
+}
+
+/* 输入框微调，让它更圆润高级 */
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  padding: 4px 15px;
+}
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #304156 inset !important;
 }
 </style>

@@ -7,6 +7,14 @@
           <el-button @click="fetchWebAssets" :icon="Refresh">刷新资产</el-button>
         </div>
       </template>
+      <el-alert 
+        title="Web 漏洞扫描说明" 
+        type="info" 
+        description="此模块基于 Nuclei 引擎对 Web 应用进行指纹识别与漏洞探测。支持【快速扫描】（仅探测中高危）和【深度扫描】（全量指纹与低危探测）。扫描结果将自动汇总在“漏洞报告”页面中，并支持 AI 智能修复答疑。" 
+        show-icon 
+        style="margin-bottom: 20px;"
+        :closable="false"
+      />
 
       <el-table :data="webAssets" v-loading="loading" border style="width: 100%;">
         <el-table-column prop="id" label="资产ID" width="80" align="center" />

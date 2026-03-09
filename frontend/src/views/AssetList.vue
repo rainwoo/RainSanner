@@ -192,32 +192,39 @@ const handleDelete = (id) => {
   })
 }
 
-// 发起扫描逻辑
+// 发起扫描逻辑 (智能分发 Web/主机 扫描)
 const handleScan = async (row) => {
-  if (row.asset_type !== 'web') {
-    ElMessage.warning('目前只支持 Web 漏洞扫描哦')
-    return
-  }
+  // 1. 判断资产类型，决定请求接口和参数
+  const isWeb = row.asset_type === 'web'
+  const scanEndpoint = isWeb ? `/assets/${row.id}/scan/` : `/assets/${row.id}/port_scan/`
+  // Web 资产默认带上 quick 参数，主机不需要
+  const payload = isWeb ? { mode: 'quick' } : {}
 
-  ElMessageBox.confirm(`确定要对 [${row.name}] 发起漏洞扫描吗？扫描可能需要几分钟时间，请耐心等待。`, '提示', {
-    confirmButtonText: '开始扫描',
+  // 2. 针对不同资产类型，定制不同的提示文案
+  const confirmMessage = isWeb
+    ? `确定要对 Web 应用 [${row.name}] 发起扫描吗？\n\n💡 提示：此处默认为【快速扫描】模式（仅探测中高危漏洞）。\n如需执行全量深度扫描，请前往左侧菜单的“Web 扫描”页面发起。`
+    : `确定要对 主机/服务器 [${row.name}] 发起【端口与服务扫描】吗？\n\n💡 提示：后台将调用 Nmap 探测其开放的端口及运行的服务版本。`
+
+  // 3. 弹出确认框
+  ElMessageBox.confirm(confirmMessage, '发起扫描', {
+    confirmButtonText: '开始后台扫描',
     cancelButtonText: '取消',
-    type: 'info',
+    type: 'warning',
   }).then(async () => {
-    // 开启页面全屏加载效果，防止用户乱点
     loading.value = true 
     try {
-      // 调用后端的 /api/assets/{id}/scan/ 接口
-      const res = await request.post(`/assets/${row.id}/scan/`)
-      ElMessage.success(res.message || '扫描任务已完成！')
-      // 可选：扫描完成后你可以自动跳转到报告页面查看结果
+      // 4. 发送对应类型的扫描请求
+      const res = await request.post(scanEndpoint, payload)
+      ElMessage.success(res.message || '扫描任务已成功提交！')
     } catch (error) {
       console.error('扫描失败', error)
-      ElMessage.error('扫描失败，请检查后端日志')
+      ElMessage.error('扫描发起失败，请检查网络或后端日志')
     } finally {
       loading.value = false
     }
-  }).catch(() => {})
+  }).catch(() => {
+    // 用户点击取消，不做任何处理
+  })
 }
 </script>
 

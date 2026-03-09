@@ -45,7 +45,7 @@ service.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 400:
-          ElMessage.error(error.response.data?.detail || '请求参数错误')
+          ElMessage.error(error.response.data?.error || error.response.data?.detail || '请求参数错误')
           break
         case 401:
           // 401 说明没有权限或 Token 过期了

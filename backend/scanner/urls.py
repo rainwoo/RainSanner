@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, AssetViewSet, ScanTaskViewSet, VulnerabilityViewSet, DashboardView, AiChatView
+from .views import RegisterView, AssetViewSet, ScanTaskViewSet, VulnerabilityViewSet, DashboardView, AiChatView, SniffTaskViewSet, UserProfileView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -13,6 +13,7 @@ router.register(r'assets', AssetViewSet, basename='asset')
 # 注册任务和漏洞的路由
 router.register(r'tasks', ScanTaskViewSet, basename='task')
 router.register(r'vulnerabilities', VulnerabilityViewSet, basename='vulnerability')
+router.register(r'sniff_tasks', SniffTaskViewSet, basename='sniff_tasks')
 
 urlpatterns = [
     # 注册接口: http://127.0.0.1:8000/api/register/
@@ -29,6 +30,9 @@ urlpatterns = [
 
     # --- 新增 AI 对话接口 ---
     path('ai/ask/', AiChatView.as_view(), name='ai_ask'),
+
+    # --- 新增：用户信息与修改密码路由 ---
+    path('user/profile/', UserProfileView.as_view(), name='user_profile'),
 
     # 将 router 自动生成的路由包含进来
     path('', include(router.urls)),

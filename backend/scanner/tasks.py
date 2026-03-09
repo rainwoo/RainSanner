@@ -4,7 +4,8 @@ import subprocess
 import json
 import os
 from celery import shared_task
-from .models import ScanTask, Vulnerability
+from .models import ScanTask, Vulnerability, SniffTask
+from django.utils import timezone 
 import logging
 from django.contrib.auth.models import User
 from .models import Asset
@@ -194,66 +195,71 @@ def run_nuclei_scan_task(task_id, mode='quick'):
 
 
 @shared_task
-def run_nmap_sniff_task(network_range, user_id):
+def run_nmap_sniff_task(task_id):
     """
-    异步执行 Nmap 主机存活嗅探并探测操作系统，自动入库
+    异步执行 Nmap 主机存活嗅探并探测操作系统，自动入库并更新历史记录
     """
     try:
-        from django.contrib.auth.models import User
-        user = User.objects.get(id=user_id)
+        # 获取刚才创建的嗅探任务记录
+        task = SniffTask.objects.get(id=task_id)
+        task.status = 'running'
+        task.save()
         
-        # 构造 Nmap 命令
-        # -F: 快速扫描常用的100个端口（OS探测需要依赖开放和关闭的端口）
-        # -O: 启用操作系统探测
-        # -oX -: 将结果以 XML 格式直接输出到标准输出(控制台)
+        user = task.user
+        network_range = task.network
+        
+        # 构造并执行 Nmap 命令
         command = ["nmap", "-F", "-O", "-T4", network_range, "-oX", "-"]
-        
-        # 执行命令并捕获输出
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         
         added_count = 0
         
         try:
-            # 解析 XML 格式的 Nmap 结果
             root = ET.fromstring(result.stdout)
         except ET.ParseError:
-            return "嗅探失败：Nmap 输出解析错误（请检查运行 Celery 的终端是否拥有 管理员/root 权限！）"
+            task.status = 'failed'
+            task.result = "嗅探失败：Nmap 输出解析错误（请检查运行Celery的终端是否具有管理员/root权限）"
+            task.finished_at = timezone.now()
+            task.save()
+            return task.result
             
-        # 遍历所有扫描到的主机
+        # 遍历主机... (此处解析逻辑与你原代码相同)
         for host in root.findall('host'):
             status = host.find('status')
-            # 只有当主机存活时才处理
             if status is not None and status.get('state') == 'up':
                 address = host.find('address')
                 if address is None:
                     continue
                 ip = address.get('addr')
                 
-                # --- 解析操作系统指纹 ---
                 os_type = 'unknown'
                 os_el = host.find('os')
                 if os_el is not None:
                     osmatch = os_el.find('osmatch')
                     if osmatch is not None:
                         os_name = osmatch.get('name', '').lower()
-                        # 简单的关键字匹配
                         if 'windows' in os_name:
                             os_type = 'windows'
                         elif 'linux' in os_name:
                             os_type = 'linux'
                 
-                # 检查是否已存在
                 if not Asset.objects.filter(target=ip, owner=user).exists():
                     Asset.objects.create(
-                        name=f"自动嗅探主机_{ip}",
-                        target=ip,
-                        asset_type='host',
-                        os_type=os_type, # 将探测到的系统类型入库！
-                        owner=user
+                        name=f"自动嗅探主机_{ip}", target=ip, asset_type='host', os_type=os_type, owner=user
                     )
                     added_count += 1
                         
-        return f"网段 {network_range} 嗅探完成，成功发现并添加了 {added_count} 个存活主机。"
+        # 记录成功结果
+        task.status = 'completed'
+        task.result = f"嗅探完成！成功发现并自动入库了 {added_count} 个存活主机。"
+        task.finished_at = timezone.now()
+        task.save()
+        return task.result
 
     except Exception as e:
-        return f"嗅探任务失败: {str(e)}"
+        task = SniffTask.objects.get(id=task_id)
+        task.status = 'failed'
+        task.result = f"系统异常: {str(e)}"
+        task.finished_at = timezone.now()
+        task.save()
+        return task.result

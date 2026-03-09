@@ -2,8 +2,8 @@ from rest_framework import generics, viewsets
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import Asset, ScanTask, Vulnerability
-from .serializers import RegisterSerializer, AssetSerializer, ScanTaskSerializer, VulnerabilitySerializer
+from .models import Asset, ScanTask, Vulnerability, SniffTask
+from .serializers import RegisterSerializer, AssetSerializer, ScanTaskSerializer, VulnerabilitySerializer, SniffTaskSerializer
 import subprocess
 import json
 import os
@@ -65,19 +65,23 @@ class AssetViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def sniff(self, request):
-        """
-        触发网段嗅探任务
-        路由自动生成为: POST /api/assets/sniff/
-        """
         network = request.data.get('network')
         if not network:
             return Response({"error": "必须提供 network (网段) 参数"}, status=400)
             
-        # 将网段和当前用户的 ID 交给 Celery 后台处理
-        run_nmap_sniff_task.delay(network, request.user.id)
+        # 1. 创建嗅探任务记录
+        from .models import SniffTask
+        task = SniffTask.objects.create(
+            user=request.user,
+            network=network,
+            status='pending'
+        )
+        
+        # 2. 现在我们把任务 ID 传给后台，而不是直接传网段
+        run_nmap_sniff_task.delay(task.id)
         
         return Response({
-            "message": f"正在后台全速嗅探 {network}，稍后请刷新资产列表查看新发现的主机！"
+            "message": f"正在后台全速嗅探 {network}，请在下方列表查看进度！"
         })
     
     @action(detail=True, methods=['post'])
@@ -237,7 +241,7 @@ class AiChatView(APIView):
         # ⚠️ 请在这里填入你申请到的免费 API Key
         # ==========================================
         # 这里以 DeepSeek 为例，如果你用其他平台，替换 key 和 base_url 即可
-        API_KEY = "xxxxxxxxxxxxxxxxxxxxxx" 
+        API_KEY = "sk-902c0a95f6484b35a991727415f47dda" 
         BASE_URL = "https://api.deepseek.com"
         MODEL_NAME = "deepseek-chat"
         
@@ -268,3 +272,40 @@ class AiChatView(APIView):
             
         except Exception as e:
             return Response({"error": f"AI 思考时大脑短路了: {str(e)}"}, status=500)
+        
+class SniffTaskViewSet(viewsets.ReadOnlyModelViewSet):
+    """前端获取嗅探历史列表的接口"""
+    serializer_class = SniffTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SniffTask.objects.filter(user=self.request.user)
+    
+class UserProfileView(APIView):
+    """
+    获取当前登录用户信息与修改密码接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # 返回当前用户的用户名
+        return Response({"username": request.user.username})
+
+    def put(self, request):
+        # 处理修改密码逻辑
+        user = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+
+        if not old_password or not new_password:
+            return Response({"error": "参数不完整"}, status=400)
+
+        # 验证原密码是否正确
+        if not user.check_password(old_password):
+            return Response({"error": "原密码不正确"}, status=400)
+
+        # 设置新密码并保存
+        user.set_password(new_password)
+        user.save()
+        
+        return Response({"message": "密码修改成功，请重新登录"})

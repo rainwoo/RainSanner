@@ -3,7 +3,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Asset
-from .models import ScanTask, Vulnerability
+from .models import ScanTask, Vulnerability, SniffTask
 
 class UserSerializer(serializers.ModelSerializer):
     """用于展示用户信息的序列化器"""
@@ -50,4 +50,11 @@ class VulnerabilitySerializer(serializers.ModelSerializer):
     """漏洞结果序列化器"""
     class Meta:
         model = Vulnerability
+        fields = '__all__'
+
+class SniffTaskSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = SniffTask
         fields = '__all__'

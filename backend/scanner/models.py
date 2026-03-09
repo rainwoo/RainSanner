@@ -110,3 +110,29 @@ class AIChatHistory(models.Model):
 
     def __str__(self):
         return f"Chat by {self.user.username} at {self.created_at}"
+    
+
+class SniffTask(models.Model):
+    """
+    网段嗅探历史任务表
+    """
+    STATUS_CHOICES = (
+        ('pending', '等待中'),
+        ('running', '嗅探中'),
+        ('completed', '已完成'),
+        ('failed', '失败'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="操作用户")
+    network = models.CharField(max_length=100, verbose_name="目标网段")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="状态")
+    result = models.TextField(verbose_name="嗅探结果", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="完成时间")
+
+    class Meta:
+        db_table = 'scanner_sniff_task'
+        ordering = ['-created_at'] # 按创建时间倒序排
+
+    def __str__(self):
+        return f"Sniff:{self.network} - {self.get_status_display()}"

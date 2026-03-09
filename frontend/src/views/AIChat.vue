@@ -35,7 +35,7 @@
         />
         <div class="input-actions">
           <span class="hint">提示: Ctrl + Enter 快捷发送</span>
-          <el-button type="primary" icon="Position" @click="sendMessage" :disabled="!inputText.trim() || loading">
+          <el-button type="primary" :icon="Position" @click="sendMessage" :disabled="!inputText.trim() || loading">
             发送 (Send)
           </el-button>
         </div>

@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <span>主机端口与服务扫描</span>
-          <el-button @click="fetchHostAssets" icon="Refresh">刷新资产</el-button>
+          <el-button @click="fetchHostAssets" :icon="Refresh">刷新资产</el-button>
         </div>
       </template>
 
